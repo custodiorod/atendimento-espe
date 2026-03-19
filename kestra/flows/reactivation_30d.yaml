@@ -1,0 +1,21 @@
+id: reactivation_30d
+namespace: clinic.ai
+description: "Recaptação 30 dias: contatos sem interação há 30 dias"
+
+triggers:
+  - id: daily_schedule
+    type: io.kestra.core.models.triggers.types.Schedule
+    cron: "0 10 * * *"
+
+tasks:
+  - id: fetch_inactive_contacts
+    type: io.kestra.core.tasks.scripts.Python
+    script: |
+      # TODO: buscar contacts com last_seen_at < now() - 30 days e sem consulta futura
+      pass
+
+  - id: send_reactivation
+    type: io.kestra.core.tasks.scripts.Python
+    script: |
+      # TODO: enviar mensagem de reativação personalizada
+      pass

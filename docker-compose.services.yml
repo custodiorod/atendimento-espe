@@ -1,0 +1,106 @@
+services:
+  # Redis - Cache, locks, rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: clinic-ai-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-clinicredis2024}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-clinicredis2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clinic-ai-network
+
+  # RabbitMQ - Message broker for Celery
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: clinic-ai-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-clinic}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-clinicrabbit2024}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - clinic-ai-network
+
+  # Kestra - Workflow orchestration
+  kestra:
+    image: kestra/kestra:latest
+    container_name: clinic-ai-kestra
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://${KESTRA_DB_HOST:-postgres}:${KESTRA_DB_PORT:-5432}/${KESTRA_DB_NAME:-kestra}
+            username: ${KESTRA_DB_USER:-kestra}
+            password: ${KESTRA_DB_PASSWORD:-kestrapassword}
+        repository:
+          type: postgres
+        queue:
+          type: postgres
+        storage:
+          type: local
+          local:
+            base-path: /app/storage
+    volumes:
+      - kestra_storage:/app/storage
+      - kestra_flows:/app/flows
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - postgres-kestra
+    networks:
+      - clinic-ai-network
+
+  # PostgreSQL for Kestra
+  postgres-kestra:
+    image: postgres:16-alpine
+    container_name: clinic-ai-postgres-kestra
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${KESTRA_DB_NAME:-kestra}
+      POSTGRES_USER: ${KESTRA_DB_USER:-kestra}
+      POSTGRES_PASSWORD: ${KESTRA_DB_PASSWORD:-kestrapassword}
+    volumes:
+      - kestra_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KESTRA_DB_USER:-kestra}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - clinic-ai-network
+
+volumes:
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  kestra_db:
+    driver: local
+  kestra_storage:
+    driver: local
+  kestra_flows:
+    driver: local
+
+networks:
+  clinic-ai-network:
+    driver: bridge

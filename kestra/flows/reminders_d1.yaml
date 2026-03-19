@@ -1,0 +1,21 @@
+id: reminders_d1
+namespace: clinic.ai
+description: "Lembrete D-1: envia lembrete de consulta para o dia seguinte"
+
+triggers:
+  - id: daily_schedule
+    type: io.kestra.core.models.triggers.types.Schedule
+    cron: "0 18 * * *"  # Todo dia às 18h
+
+tasks:
+  - id: fetch_appointments
+    type: io.kestra.core.tasks.scripts.Python
+    script: |
+      # TODO: buscar appointments com scheduled_at = amanhã e status = scheduled/confirmed
+      pass
+
+  - id: send_reminders
+    type: io.kestra.core.tasks.scripts.Python
+    script: |
+      # TODO: enviar mensagem de lembrete via Uazapi para cada paciente
+      pass

@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=dxdqhhfkmpbitfeehxih&features=storage%2Cbranching%2Cfunctions%2Cdevelopment%2Cdebugging%2Cdatabase%2Caccount",
+      "headers": {
+        "Authorization": "Bearer sbp_4f2c17fbe5dd4521244da2a29fd1b22fbb4fd770"
+      }
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "env": {}
+    }
+  }
+}

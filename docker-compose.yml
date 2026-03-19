@@ -1,0 +1,98 @@
+version: "3.9"
+
+services:
+
+  api:
+    build: .
+    container_name: clinic_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file: .env
+    depends_on:
+      - redis
+      - rabbitmq
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  worker:
+    build: .
+    container_name: clinic_worker
+    command: celery -A app.execution.workers.celery_app worker --loglevel=info -Q realtime,media,sync,reminders,reactivation
+    env_file: .env
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: clinic_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: clinic_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-password}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  kestra:
+    image: kestra/kestra:latest
+    container_name: clinic_kestra
+    ports:
+      - "8080:8080"
+    volumes:
+      - kestra_data:/app/storage
+      - ./kestra/flows:/app/flows
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra_db:5432/kestra
+            username: kestra
+            password: kestra
+    depends_on:
+      - kestra_db
+    restart: unless-stopped
+
+  kestra_db:
+    image: postgres:15-alpine
+    container_name: clinic_kestra_db
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: kestra
+    volumes:
+      - kestra_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  kestra_data:
+  kestra_db_data:
